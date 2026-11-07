@@ -1,0 +1,2054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>Saral UPI Test Bench | Accessibility Prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    @layer reset, tokens, layout, components, phone, utilities;
+
+    @layer reset {
+      body, h1, h2, h3, h4, p, ul, ol, figure, blockquote, dl, dd {
+        margin: 0;
+      }
+      ul, ol {
+        padding: 0;
+        list-style: none;
+      }
+      button, input, select, textarea {
+        font: inherit;
+        color: inherit;
+      }
+      button {
+        cursor: pointer;
+        border: none;
+        background: none;
+      }
+      table {
+        border-collapse: collapse;
+        inline-size: 100%;
+      }
+    }
+
+    @layer tokens {
+      :root {
+        /* Core palette from PRD & prompt */
+        --ink: #1D2433;
+        --yellow: #F7C600;
+        --green: #0B6B3A;
+        --green-aaa: #07522C; /* > 8.5:1 with #FFFDF6 */
+        --red: #B3261E;
+        --red-aaa: #8C1B15; /* > 8.2:1 with #FFFDF6 */
+        --cream: #FFFDF6;
+        --cream-card: #F7F3E6;
+        --cream-border: #5A6275;
+
+        /* Control panel theme tokens (Light & Dark mode support) */
+        --panel-bg-light: #F4F1EA;
+        --panel-bg-dark: #141821;
+        --panel-surface-light: #FFFDF8;
+        --panel-surface-dark: #1E2433;
+        --panel-text-light: #1D2433;
+        --panel-text-dark: #F5F3EE;
+        --panel-muted-light: #4A5264;
+        --panel-muted-dark: #B8C0D4;
+        --panel-border-light: #CFD4DF;
+        --panel-border-dark: #343D52;
+
+        --panel-bg: var(--panel-bg-light);
+        --panel-surface: var(--panel-surface-light);
+        --panel-text: var(--panel-text-light);
+        --panel-muted: var(--panel-muted-light);
+        --panel-border: var(--panel-border-light);
+
+        /* Interactive test variables */
+        --saral-scale: 1;
+        --phone-blur: 0px;
+
+        --font-sans: 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+        color-scheme: light dark;
+        accent-color: var(--green);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --panel-bg: var(--panel-bg-dark);
+          --panel-surface: var(--panel-surface-dark);
+          --panel-text: var(--panel-text-dark);
+          --panel-muted: var(--panel-muted-dark);
+          --panel-border: var(--panel-border-dark);
+          accent-color: var(--yellow);
+        }
+      }
+
+      @supports (color: light-dark(white, black)) {
+        :root {
+          --panel-bg: light-dark(var(--panel-bg-light), var(--panel-bg-dark));
+          --panel-surface: light-dark(var(--panel-surface-light), var(--panel-surface-dark));
+          --panel-text: light-dark(var(--panel-text-light), var(--panel-text-dark));
+          --panel-muted: light-dark(var(--panel-muted-light), var(--panel-muted-dark));
+          --panel-border: light-dark(var(--panel-border-light), var(--panel-border-dark));
+        }
+      }
+    }
+
+    @layer layout {
+      body {
+        font-family: var(--font-sans);
+        background-color: var(--panel-bg);
+        color: var(--panel-text);
+        line-height: 1.5;
+        min-block-size: 100dvh;
+      }
+
+      h1, h2, h3, th {
+        text-wrap: balance;
+      }
+
+      p, li {
+        text-wrap: pretty;
+      }
+
+      .app-shell {
+        display: grid;
+        grid-template-columns: minmax(340px, 1fr) auto;
+        gap: 1.75rem;
+        max-inline-size: 1240px;
+        margin-inline: auto;
+        padding: 1.25rem 1.5rem 2.5rem;
+        align-items: start;
+      }
+
+      @media (max-width: 900px) {
+        .app-shell {
+          grid-template-columns: 1fr;
+          justify-items: center;
+          padding: 1rem;
+        }
+        .control-panel {
+          inline-size: 100%;
+        }
+      }
+
+      .control-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .phone-stage {
+        position: sticky;
+        inset-block-start: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.65rem;
+      }
+
+      @media (max-width: 900px) {
+        .phone-stage {
+          position: static;
+        }
+      }
+    }
+
+    @layer components {
+      .skip-link {
+        position: fixed;
+        inset-block-start: 0.5rem;
+        inset-inline-start: 0.5rem;
+        z-index: 999;
+        background: var(--yellow);
+        color: var(--ink);
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .visually-hidden:where(:not(:focus-within, :active)) {
+        position: absolute !important;
+        clip-path: inset(50%) !important;
+        overflow: hidden !important;
+        width: 1px !important;
+        height: 1px !important;
+        margin: -1px !important;
+        padding: 0 !important;
+        border: 0 !important;
+        white-space: nowrap !important;
+      }
+
+      :where(a:any-link, button, input):focus-visible {
+        outline: 3px solid var(--yellow);
+        outline-offset: 2px;
+      }
+
+      .panel-card {
+        background: var(--panel-surface);
+        border: 1px solid var(--panel-border);
+        border-radius: 0.875rem;
+        padding: 1rem 1.15rem;
+      }
+
+      .header-bar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 0.5rem;
+        margin-block-end: 0.5rem;
+      }
+
+      .header-bar h1 {
+        font-size: 1.35rem;
+        font-weight: 800;
+      }
+
+      .persona-badge {
+        font-size: 0.82rem;
+        color: var(--panel-muted);
+      }
+
+      .task-banner {
+        background: var(--yellow);
+        color: var(--ink);
+        border: 2px solid var(--ink);
+        border-radius: 0.65rem;
+        padding: 0.75rem 0.9rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+      }
+
+      .task-banner-label {
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+
+      .task-banner-text {
+        font-size: 1.05rem;
+        font-weight: 800;
+      }
+
+      .controls-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.9rem;
+      }
+
+      .control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+      }
+
+      .control-label {
+        font-size: 0.88rem;
+        font-weight: 700;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .segmented-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.45rem;
+      }
+
+      .seg-btn {
+        min-block-size: 2.6rem;
+        padding: 0.45rem 0.75rem;
+        border-radius: 0.5rem;
+        border: 2px solid var(--panel-border);
+        background: transparent;
+        font-weight: 700;
+        font-size: 0.9rem;
+        transition: background-color 0.15s, border-color 0.15s;
+      }
+
+      .seg-btn[aria-pressed="true"] {
+        background: var(--yellow);
+        color: var(--ink);
+        border-color: var(--ink);
+      }
+
+      .seg-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .action-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-block-start: 0.5rem;
+        padding-block-start: 0.75rem;
+        border-block-start: 1px solid var(--panel-border);
+      }
+
+      .new-attempt-btn {
+        background: var(--ink);
+        color: var(--cream);
+        border: 2px solid var(--panel-border);
+        border-radius: 0.55rem;
+        padding: 0.55rem 1rem;
+        font-weight: 700;
+        font-size: 0.9rem;
+      }
+
+      .live-telemetry {
+        display: flex;
+        gap: 0.9rem;
+        font-size: 0.86rem;
+        color: var(--panel-muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .live-telemetry strong {
+        color: var(--panel-text);
+      }
+
+      .range-input {
+        inline-size: 100%;
+        block-size: 1.5rem;
+        cursor: pointer;
+      }
+
+      .range-input:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .section-title {
+        font-size: 1rem;
+        font-weight: 800;
+        margin-block-end: 0.6rem;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+      }
+
+      .data-table {
+        font-size: 0.85rem;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .data-table caption {
+        text-align: start;
+        font-weight: 700;
+        font-size: 0.85rem;
+        margin-block-end: 0.4rem;
+        color: var(--panel-muted);
+      }
+
+      .data-table th,
+      .data-table td {
+        padding: 0.45rem 0.55rem;
+        border-block-end: 1px solid var(--panel-border);
+        text-align: start;
+      }
+
+      .data-table th {
+        font-weight: 700;
+        background: color-mix(in oklab, var(--panel-border), transparent 65%);
+      }
+
+      .status-pill {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.78rem;
+      }
+
+      .status-pill.ok {
+        background: var(--green-aaa);
+        color: var(--cream);
+      }
+
+      .status-pill.wrong {
+        background: var(--red-aaa);
+        color: var(--cream);
+      }
+
+      .hypotheses-list {
+        display: grid;
+        gap: 0.4rem;
+        font-size: 0.85rem;
+      }
+
+      .hypotheses-list li {
+        display: grid;
+        grid-template-columns: 2.2rem 1fr;
+        gap: 0.35rem;
+      }
+
+      .hyp-id {
+        font-weight: 800;
+        color: var(--panel-text);
+      }
+
+      .honest-note {
+        margin-block-start: 0.75rem;
+        padding: 0.65rem 0.8rem;
+        border-inline-start: 4px solid var(--yellow);
+        background: color-mix(in oklab, var(--yellow), transparent 88%);
+        font-size: 0.83rem;
+        border-radius: 0 0.4rem 0.4rem 0;
+      }
+    }
+
+    @layer phone {
+      .phone-caption {
+        font-size: 0.84rem;
+        font-weight: 700;
+        color: var(--panel-muted);
+      }
+
+      /* Phone hardware frame (340x680) */
+      .phone-frame {
+        inline-size: 340px;
+        max-inline-size: 100%;
+        block-size: 680px;
+        background: #11151F;
+        border-radius: 2.4rem;
+        padding: 12px;
+        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+        border: 3px solid #2E3648;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        box-sizing: border-box;
+      }
+
+      .phone-speaker {
+        inline-size: 68px;
+        block-size: 5px;
+        background: #2E3648;
+        border-radius: 999px;
+        margin: 2px auto 8px;
+        flex-shrink: 0;
+      }
+
+      .phone-viewport {
+        flex: 1;
+        inline-size: 100%;
+        background: var(--cream);
+        color: var(--ink);
+        color-scheme: light;
+        border-radius: 1.75rem;
+        overflow-y: auto;
+        overflow-x: hidden;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        filter: blur(var(--phone-blur));
+        transition: filter 0.15s ease;
+      }
+
+      /* =====================================================
+         VERSION 1: TYPICAL APP (Deliberately poor UX)
+         Tiny 10px fonts, tiny identical grey avatars,
+         icon-only buttons, no contact tags, promo pop-up
+         ===================================================== */
+      .typical-screen {
+        font-size: 10px;
+        line-height: 1.25;
+        color: #555B66;
+        background: #F5F6F8;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        user-select: none;
+      }
+
+      .typical-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 8px;
+        background: #FFFFFF;
+        border-block-end: 1px solid #E2E5EC;
+      }
+
+      .typical-icon-group {
+        display: flex;
+        gap: 4px;
+      }
+
+      .typical-icon-btn {
+        inline-size: 22px;
+        block-size: 22px;
+        border-radius: 4px;
+        background: #EEF0F4;
+        color: #555B66;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+      }
+
+      .typical-banner-strip {
+        background: #E8ECF5;
+        padding: 4px 8px;
+        font-size: 9px;
+        color: #687082;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .typical-section-label {
+        padding: 6px 8px 3px;
+        font-size: 9px;
+        color: #7B8294;
+      }
+
+      .typical-contact-list {
+        background: #FFFFFF;
+        border-block: 1px solid #E5E7EB;
+      }
+
+      .typical-contact-row {
+         inline-size: 100%;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 8px;
+        border-block-end: 1px solid #F0F2F5;
+        text-align: start;
+        font-size: 10px;
+        color: #444954;
+      }
+
+      .typical-contact-row:hover {
+        background: #F3F4F6;
+      }
+
+      .typical-avatar {
+        inline-size: 20px;
+        block-size: 20px;
+        border-radius: 50%;
+        background: #CBD0D8;
+        color: #6C7380;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        flex-shrink: 0;
+      }
+
+      .typical-contact-name {
+        font-size: 10px;
+        font-weight: 600;
+        color: #3B404B;
+      }
+
+      .typical-amount-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 8px;
+        gap: 4px;
+      }
+
+      .typical-amount-display {
+        font-size: 14px;
+        font-weight: 700;
+        color: #2E333D;
+        padding: 4px 10px;
+        background: #FFFFFF;
+        border: 1px solid #DCE0E8;
+        border-radius: 4px;
+        min-inline-size: 90px;
+        text-align: center;
+      }
+
+      .typical-keypad {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 3px;
+        padding: 6px;
+        background: #E9ECF2;
+      }
+
+      .typical-key {
+        block-size: 28px;
+        background: #FFFFFF;
+        border: 1px solid #D5DAE2;
+        border-radius: 3px;
+        font-size: 10px;
+        color: #333842;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .typical-key.pay-icon-btn {
+        background: #3B66D6;
+        color: #FFFFFF;
+        border-color: #2E54B8;
+      }
+
+      /* Text-heavy promo pop-up with tiny 'x' close mark */
+      .typical-ModalOverlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 20, 30, 0.65);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px;
+        z-index: 30;
+      }
+
+      .typical-promo-popup {
+        background: #FFFFFF;
+        border: 1px solid #C5CBD6;
+        border-radius: 6px;
+        padding: 10px;
+        position: relative;
+        font-size: 10px;
+        line-height: 1.25;
+        color: #4A505C;
+        max-block-size: 90%;
+        overflow-y: auto;
+      }
+
+      .typical-tiny-close {
+        position: absolute;
+        inset-block-start: 3px;
+        inset-inline-end: 4px;
+        inline-size: 14px;
+        block-size: 14px;
+        font-size: 9px;
+        line-height: 1;
+        color: #8C93A4;
+        background: #F1F3F7;
+        border-radius: 2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .typical-promo-cta {
+        inline-size: 100%;
+        margin-block-start: 6px;
+        padding: 5px;
+        background: #F59E0B;
+        color: #1D2433;
+        font-size: 10px;
+        font-weight: 700;
+        border-radius: 3px;
+      }
+
+      /* =====================================================
+         VERSION 2: SARAL (High-contrast, accessible UPI)
+         >= 7:1 contrast, >= 64px tap targets, no icon-only
+         buttons, no pop-ups, scales 100%-160% cleanly
+         ===================================================== */
+      .saral-screen {
+        --s: var(--saral-scale, 1);
+        flex: 1;
+        background: var(--cream);
+        color: var(--ink);
+        padding: 0.75rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        font-size: calc(1rem * var(--s));
+        line-height: 1.35;
+      }
+
+      .saral-header {
+        border-block-end: 2px solid var(--ink);
+        padding-block-end: 0.45rem;
+      }
+
+      .saral-title {
+        font-size: calc(1.25rem * var(--s));
+        font-weight: 800;
+        color: var(--ink);
+        overflow-wrap: break-word;
+      }
+
+      .saral-subtitle {
+        font-size: calc(0.92rem * var(--s));
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      /* Memorable element: Large Contact Cards */
+      .saral-contact-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+      }
+
+      .saral-contact-card {
+        inline-size: 100%;
+        min-block-size: 64px;
+        background: var(--cream-card);
+        border: 2.5px solid var(--ink);
+        border-radius: 0.85rem;
+        padding: 0.65rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 0.7rem;
+        text-align: start;
+        color: var(--ink);
+        box-shadow: 0 3px 0 var(--ink);
+        transition: transform 0.1s ease, background-color 0.1s ease;
+        box-sizing: border-box;
+      }
+
+      .saral-contact-card:hover {
+        background: #F2EBD4;
+      }
+
+      .saral-contact-card:active {
+        transform: translateY(2px);
+      }
+
+      .saral-avatar {
+        inline-size: calc(60px * var(--s));
+        block-size: calc(60px * var(--s));
+        min-inline-size: 60px;
+        min-block-size: 60px;
+        border-radius: 0.75rem;
+        border: 2.5px solid var(--ink);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: calc(1.3rem * var(--s));
+        font-weight: 800;
+        color: var(--ink);
+        flex-shrink: 0;
+      }
+
+      .saral-card-body {
+        flex: 1 1 140px;
+        min-inline-size: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+
+      .saral-card-name {
+        font-size: calc(1.375rem * var(--s)); /* 22px at 100% */
+        font-weight: 800;
+        color: var(--ink);
+        line-height: 1.2;
+        overflow-wrap: break-word;
+      }
+
+      .saral-tag-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        align-items: center;
+      }
+
+      .saral-tag {
+        display: inline-block;
+        background: var(--yellow);
+        color: var(--ink);
+        border: 1.5px solid var(--ink);
+        border-radius: 0.4rem;
+        padding: 0.1rem 0.45rem;
+        font-size: calc(0.88rem * var(--s));
+        font-weight: 800;
+      }
+
+      .saral-phone-end {
+        font-size: calc(0.88rem * var(--s));
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .saral-last-paid {
+        font-size: calc(0.84rem * var(--s));
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      /* Saral standard >=64px buttons */
+      .saral-btn {
+        min-block-size: 64px;
+        inline-size: 100%;
+        padding: 0.6rem 0.85rem;
+        border-radius: 0.75rem;
+        border: 2.5px solid var(--ink);
+        font-size: calc(1.05rem * var(--s));
+        font-weight: 800;
+        color: var(--ink);
+        background: var(--cream-card);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        box-shadow: 0 3px 0 var(--ink);
+        overflow-wrap: break-word;
+        box-sizing: border-box;
+      }
+
+      .saral-btn.primary {
+        background: var(--yellow);
+        color: var(--ink);
+      }
+
+      .saral-btn.success {
+        background: var(--green-aaa);
+        color: var(--cream);
+      }
+
+      .saral-btn.danger {
+        background: var(--red-aaa);
+        color: var(--cream);
+        border-color: var(--ink);
+      }
+
+      .saral-payee-summary {
+        background: var(--cream-card);
+        border: 2px solid var(--ink);
+        border-radius: 0.75rem;
+        padding: 0.6rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.65rem;
+        box-sizing: border-box;
+      }
+
+      .saral-amount-box {
+        background: #FFFFFF;
+        border: 2.5px solid var(--ink);
+        border-radius: 0.75rem;
+        padding: 0.65rem;
+        text-align: center;
+        box-sizing: border-box;
+      }
+
+      .saral-amount-digits {
+        font-size: calc(1.75rem * var(--s));
+        font-weight: 800;
+        color: var(--ink);
+        line-height: 1.15;
+        overflow-wrap: break-word;
+      }
+
+      .saral-amount-words {
+        font-size: calc(0.95rem * var(--s));
+        font-weight: 700;
+        color: var(--ink);
+        margin-block-start: 0.2rem;
+        overflow-wrap: break-word;
+      }
+
+      .saral-keypad {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.45rem;
+      }
+
+      .saral-key {
+        min-block-size: 64px;
+        min-inline-size: 0;
+        border-radius: 0.65rem;
+        border: 2px solid var(--ink);
+        background: #FFFFFF;
+        color: var(--ink);
+        font-size: calc(1.25rem * var(--s));
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.25rem;
+        text-align: center;
+        box-shadow: 0 2px 0 var(--ink);
+        overflow-wrap: break-word;
+        box-sizing: border-box;
+      }
+
+      .saral-key.word-key {
+        font-size: calc(0.9rem * var(--s));
+        background: var(--cream-card);
+      }
+
+      /* Hold to pay button with visible fill bar */
+      .hold-pay-btn {
+        position: relative;
+        overflow: hidden;
+        background: var(--yellow);
+        color: var(--ink);
+        user-select: none;
+        touch-action: manipulation;
+      }
+
+      .hold-fill-bar {
+        position: absolute;
+        inset-block: 0;
+        inset-inline-start: 0;
+        inline-size: 0%;
+        background: #D9A400;
+        border-inline-end: 3px solid var(--ink);
+        z-index: 1;
+        pointer-events: none;
+      }
+
+      .hold-btn-label {
+        position: relative;
+        z-index: 2;
+        pointer-events: none;
+      }
+
+      .saral-inline-msg {
+        background: var(--cream-card);
+        border: 2px solid var(--ink);
+        border-inline-start: 6px solid var(--ink);
+        border-radius: 0.5rem;
+        padding: 0.55rem 0.7rem;
+        font-size: calc(0.9rem * var(--s));
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .countdown-box {
+        background: var(--cream-card);
+        border: 2.5px solid var(--ink);
+        border-radius: 0.85rem;
+        padding: 0.85rem;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .countdown-number {
+        font-size: calc(2rem * var(--s));
+        font-weight: 800;
+        color: var(--ink);
+      }
+
+      .countdown-bar-track {
+        inline-size: 100%;
+        block-size: 14px;
+        background: #FFFFFF;
+        border: 2px solid var(--ink);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+
+      .countdown-bar-fill {
+        block-size: 100%;
+        background: var(--green-aaa);
+        transition: width 0.25s linear;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a href="#phone-app" class="skip-link visually-hidden">Skip to phone screen</a>
+
+  <main class="app-shell">
+    <!-- LEFT COLUMN: CONTROL PANEL & RESULTS -->
+    <section class="control-panel" aria-label="Test bench controls and results">
+      <div class="panel-card">
+        <header class="header-bar">
+          <h1>Saral UPI test bench</h1>
+          <span class="persona-badge">Persona: Balwinder, 52, auto driver</span>
+        </header>
+
+        <div class="task-banner" role="region" aria-label="Tester task">
+          <span class="task-banner-label">Task for every attempt</span>
+          <p class="task-banner-text">“Pay Rs. 500 to Gurmeet who runs the tyre shop.”</p>
+        </div>
+
+        <div class="controls-grid" style="margin-block-start: 0.9rem;">
+          <!-- Design Switcher -->
+          <div class="control-group">
+            <span class="control-label" id="design-switch-label">1. App version</span>
+            <div class="segmented-row" role="group" aria-labelledby="design-switch-label">
+              <button type="button" id="btn-mode-typical" class="seg-btn" aria-pressed="false">
+                Typical app
+              </button>
+              <button type="button" id="btn-mode-saral" class="seg-btn" aria-pressed="true">
+                Saral
+              </button>
+            </div>
+          </div>
+
+          <!-- Saral Pay Style Switcher -->
+          <div class="control-group">
+            <span class="control-label" id="paystyle-switch-label">
+              <span>2. Saral pay style</span>
+              <span id="saral-only-tag" style="font-size: 0.76rem; color: var(--panel-muted);">Saral only</span>
+            </span>
+            <div class="segmented-row" role="group" aria-labelledby="paystyle-switch-label">
+              <button type="button" id="btn-style-hold" class="seg-btn" aria-pressed="true">
+                Hold to pay (1s)
+              </button>
+              <button type="button" id="btn-style-tap" class="seg-btn" aria-pressed="false">
+                Tap to pay
+              </button>
+            </div>
+          </div>
+
+          <!-- Blur Slider -->
+          <div class="control-group">
+            <label class="control-label" for="slider-blur">
+              <span>3. Vision blur (presbyopia proxy)</span>
+              <output id="output-blur" for="slider-blur">0 px</output>
+            </label>
+            <input
+              type="range"
+              id="slider-blur"
+              class="range-input"
+              min="0"
+              max="4"
+              step="0.5"
+              value="0"
+            >
+          </div>
+
+          <!-- Saral Text Size Slider -->
+          <div class="control-group">
+            <label class="control-label" for="slider-scale">
+              <span>4. Saral text &amp; avatar size</span>
+              <output id="output-scale" for="slider-scale">100%</output>
+            </label>
+            <input
+              type="range"
+              id="slider-scale"
+              class="range-input"
+              min="100"
+              max="160"
+              step="10"
+              value="100"
+            >
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button type="button" id="btn-new-attempt" class="new-attempt-btn">
+            Start a new attempt
+          </button>
+          <div class="live-telemetry" aria-live="off">
+            <span>Elapsed: <strong id="live-seconds">0.0s</strong></span>
+            <span>Phone taps: <strong id="live-taps">0</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUMMARY & ATTEMPT LOG TABLES -->
+      <div class="panel-card">
+        <h2 class="section-title">Comparison summary</h2>
+        <div class="table-wrap">
+          <table class="data-table" id="summary-table">
+            <caption>Performance per design (in-memory session only)</caption>
+            <thead>
+              <tr>
+                <th scope="col">Design</th>
+                <th scope="col">Tries</th>
+                <th scope="col">Wrong payments</th>
+                <th scope="col">Average seconds</th>
+                <th scope="col">Average taps</th>
+              </tr>
+            </thead>
+            <tbody id="summary-tbody"></tbody>
+          </table>
+        </div>
+
+        <h2 class="section-title" style="margin-block-start: 1.1rem;">All attempts log</h2>
+        <div class="table-wrap">
+          <table class="data-table" id="attempts-table">
+            <caption>Individual attempt records</caption>
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Design</th>
+                <th scope="col">Contact paid</th>
+                <th scope="col">Amount</th>
+                <th scope="col">Seconds</th>
+                <th scope="col">Taps</th>
+                <th scope="col">Outcome</th>
+              </tr>
+            </thead>
+            <tbody id="attempts-tbody">
+              <tr>
+                <td colspan="7" style="color: var(--panel-muted);">
+                  No attempts completed yet. Complete a payment on the phone screen to log results.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- HYPOTHESES & HONEST NOTE -->
+      <div class="panel-card">
+        <h2 class="section-title">Hypotheses under test (H1 to H5)</h2>
+        <ul class="hypotheses-list">
+          <li>
+            <span class="hyp-id">H1</span>
+            <span>Large faces with relationship tags and phone endings reduce wrong-contact picks.</span>
+          </li>
+          <li>
+            <span class="hyp-id">H2</span>
+            <span>Hold-to-pay prevents accidental sends, or it is harder for shaky hands than a big Tap button.</span>
+          </li>
+          <li>
+            <span class="hyp-id">H3</span>
+            <span>Reading the amount and name aloud helps users catch mistakes.</span>
+          </li>
+          <li>
+            <span class="hyp-id">H4</span>
+            <span>A short send delay with a big Cancel button saves mistaken payments.</span>
+          </li>
+          <li>
+            <span class="hyp-id">H5</span>
+            <span>Larger text and no icon-only buttons shorten time on task.</span>
+          </li>
+        </ul>
+        <p class="honest-note">
+          <strong>Honest constraint:</strong> Real UPI payments cannot be recalled once sent to the bank or NPCI. The 8-second “sending soon” delay in Saral is a design concept where the payment app holds the instruction briefly on the phone before transmitting it.
+        </p>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: PHONE FRAME (approx 340x680 viewport) -->
+    <section class="phone-stage" aria-label="Interactive phone simulator">
+      <div class="phone-caption" id="phone-mode-caption">Active view: Saral (Hold to pay)</div>
+      <div class="phone-frame">
+        <div class="phone-speaker" aria-hidden="true"></div>
+        <div id="phone-app" class="phone-viewport" tabindex="-1"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      // Contacts defined by PRD & Prompt
+      const CONTACTS = [
+        {
+          id: 'gurmeet-brother',
+          name: 'Gurmeet Singh',
+          tag: 'Brother',
+          phoneEnd: '321',
+          lastPaid: 'Rs. 200',
+          initials: 'GS',
+          color: '#FFE082',
+          isTarget: false
+        },
+        {
+          id: 'gurmeet-tyre',
+          name: 'Gurmeet Singh',
+          tag: 'Tyre shop',
+          phoneEnd: '684',
+          lastPaid: 'Rs. 350',
+          initials: 'GS',
+          color: '#F7C600',
+          isTarget: true
+        },
+        {
+          id: 'ramesh-fuel',
+          name: 'Ramesh Kumar',
+          tag: 'Fuel pump',
+          phoneEnd: '119',
+          lastPaid: 'Rs. 180',
+          initials: 'RK',
+          color: '#C8E6C9',
+          isTarget: false
+        },
+        {
+          id: 'sukhdev-union',
+          name: 'Sukhdev',
+          tag: 'Auto union',
+          phoneEnd: '502',
+          lastPaid: 'Rs. 100',
+          initials: 'SU',
+          color: '#BBDEFB',
+          isTarget: false
+        },
+        {
+          id: 'pinky-wife',
+          name: 'Pinky',
+          tag: 'Wife',
+          phoneEnd: '840',
+          lastPaid: 'Rs. 1,000',
+          initials: 'PK',
+          color: '#F8BBD0',
+          isTarget: false
+        }
+      ];
+
+      // In-memory state only (no localStorage)
+      const state = {
+        mode: 'saral',          // 'typical' | 'saral'
+        payStyle: 'hold',       // 'hold' | 'tap'
+        blur: 0,                // 0 to 4
+        scale: 100,             // 100 to 160
+        screen: 'contacts',     // 'contacts' | 'amount' | 'confirm' | 'sending' | 'done'
+        selectedContact: null,
+        amountStr: '',
+        inlineNotice: '',
+        showTypicalPromo: false,
+        typicalActiveAttemptRef: null,
+
+        // Attempt telemetry
+        attemptStartMs: performance.now(),
+        taps: 0,
+        attempts: [],
+
+        // Timers
+        holdRAF: null,
+        holdStartMs: 0,
+        sendingTimer: null,
+        sendingSecondsLeft: 8
+      };
+
+      // DOM elements
+      const phoneApp = document.getElementById('phone-app');
+      const btnModeTypical = document.getElementById('btn-mode-typical');
+      const btnModeSaral = document.getElementById('btn-mode-saral');
+      const btnStyleHold = document.getElementById('btn-style-hold');
+      const btnStyleTap = document.getElementById('btn-style-tap');
+      const sliderBlur = document.getElementById('slider-blur');
+      const outputBlur = document.getElementById('output-blur');
+      const sliderScale = document.getElementById('slider-scale');
+      const outputScale = document.getElementById('output-scale');
+      const btnNewAttempt = document.getElementById('btn-new-attempt');
+      const liveSecondsEl = document.getElementById('live-seconds');
+      const liveTapsEl = document.getElementById('live-taps');
+      const summaryTbody = document.getElementById('summary-tbody');
+      const attemptsTbody = document.getElementById('attempts-tbody');
+      const phoneModeCaption = document.getElementById('phone-mode-caption');
+
+      // Number to English words helper for Indian Rupees (up to 99,999)
+      function numberToWords(num) {
+        if (!num || num <= 0) return 'Zero rupees';
+        const ones = [
+          '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+          'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+          'Seventeen', 'Eighteen', 'Nineteen'
+        ];
+        const tens = [
+          '', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'
+        ];
+
+        function underHundred(n) {
+          if (n < 20) return ones[n];
+          const t = Math.floor(n / 10);
+          const o = n % 10;
+          return tens[t] + (o ? ' ' + ones[o].toLowerCase() : '');
+        }
+
+        const parts = [];
+        let rem = num;
+        if (rem >= 1000) {
+          const thousands = Math.floor(rem / 1000);
+          parts.push(underHundred(thousands) + ' thousand');
+          rem %= 1000;
+        }
+        if (rem >= 100) {
+          const hundreds = Math.floor(rem / 100);
+          parts.push(ones[hundreds] + ' hundred');
+          rem %= 100;
+        }
+        if (rem > 0) {
+          parts.push(underHundred(rem));
+        }
+
+        const sentence = parts.join(' ').trim();
+        const normalized = sentence.charAt(0).toUpperCase() + sentence.slice(1).toLowerCase();
+        return normalized + (num === 1 ? ' rupee' : ' rupees');
+      }
+
+      function stopActiveTimers() {
+        if (state.holdRAF) {
+          cancelAnimationFrame(state.holdRAF);
+          state.holdRAF = null;
+        }
+        if (state.sendingTimer) {
+          clearInterval(state.sendingTimer);
+          state.sendingTimer = null;
+        }
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+        }
+      }
+
+      function startNewAttempt() {
+        stopActiveTimers();
+        state.screen = 'contacts';
+        state.selectedContact = null;
+        state.amountStr = '';
+        state.inlineNotice = '';
+        state.showTypicalPromo = false;
+        state.typicalActiveAttemptRef = null;
+        state.attemptStartMs = performance.now();
+        state.taps = 0;
+        liveTapsEl.textContent = '0';
+        liveSecondsEl.textContent = '0.0s';
+        renderPhone();
+      }
+
+      function getDesignLabel() {
+        if (state.mode === 'typical') return 'Typical';
+        return state.payStyle === 'hold' ? 'Saral (Hold)' : 'Saral (Tap)';
+      }
+
+      function recordCompletedAttempt() {
+        const elapsedSec = Math.max(0.1, (performance.now() - state.attemptStartMs) / 1000);
+        const amountNum = parseInt(state.amountStr || '0', 10);
+        const contact = state.selectedContact;
+        const isCorrect = Boolean(contact && contact.isTarget && amountNum === 500);
+
+        const entry = {
+          index: state.attempts.length + 1,
+          design: getDesignLabel(),
+          contactLabel: contact ? `${contact.name} (${contact.tag})` : 'Unknown',
+          amount: amountNum,
+          seconds: Number(elapsedSec.toFixed(1)),
+          taps: state.taps,
+          correct: isCorrect
+        };
+
+        state.attempts.push(entry);
+        renderTables();
+        return entry;
+      }
+
+      function renderTables() {
+        const designs = ['Typical', 'Saral (Hold)', 'Saral (Tap)'];
+        summaryTbody.innerHTML = designs.map((d) => {
+          const rows = state.attempts.filter((a) => a.design === d);
+          const tries = rows.length;
+          const wrong = rows.filter((a) => !a.correct).length;
+          const avgSec = tries
+            ? (rows.reduce((acc, r) => acc + r.seconds, 0) / tries).toFixed(1) + 's'
+            : '—';
+          const avgTaps = tries
+            ? (rows.reduce((acc, r) => acc + r.taps, 0) / tries).toFixed(1)
+            : '—';
+
+          return `
+            <tr>
+              <th scope="row">${d}</th>
+              <td>${tries}</td>
+              <td>${wrong}</td>
+              <td>${avgSec}</td>
+              <td>${avgTaps}</td>
+            </tr>
+          `;
+        }).join('');
+
+        if (state.attempts.length === 0) {
+          attemptsTbody.innerHTML = `
+            <tr>
+              <td colspan="7" style="color: var(--panel-muted);">
+                No attempts completed yet. Complete a payment on the phone screen to log results.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        attemptsTbody.innerHTML = state.attempts.map((a) => `
+          <tr>
+            <td>${a.index}</td>
+            <td>${a.design}</td>
+            <td>${a.contactLabel}</td>
+            <td>Rs. ${a.amount}</td>
+            <td>${a.seconds.toFixed(1)}s</td>
+            <td>${a.taps}</td>
+            <td>
+              <span class="status-pill ${a.correct ? 'ok' : 'wrong'}">
+                ${a.correct ? 'Correct' : 'Wrong'}
+              </span>
+            </td>
+          </tr>
+        `).join('');
+      }
+
+      function updateControlPanelUI() {
+        const isSaral = state.mode === 'saral';
+        btnModeTypical.setAttribute('aria-pressed', String(!isSaral));
+        btnModeSaral.setAttribute('aria-pressed', String(isSaral));
+
+        btnStyleHold.setAttribute('aria-pressed', String(state.payStyle === 'hold'));
+        btnStyleTap.setAttribute('aria-pressed', String(state.payStyle === 'tap'));
+        btnStyleHold.disabled = !isSaral;
+        btnStyleTap.disabled = !isSaral;
+        sliderScale.disabled = !isSaral;
+
+        document.documentElement.style.setProperty('--phone-blur', `${state.blur}px`);
+        document.documentElement.style.setProperty('--saral-scale', String(state.scale / 100));
+
+        outputBlur.textContent = `${state.blur} px`;
+        outputScale.textContent = `${state.scale}%`;
+        phoneModeCaption.textContent = `Active view: ${getDesignLabel()}`;
+      }
+
+      function registerPhoneTap() {
+        state.taps += 1;
+        liveTapsEl.textContent = String(state.taps);
+
+        // If the user is still clicking around the post-pay promo modal in Typical,
+        // keep updating that attempt's tap count & elapsed seconds
+        if (state.typicalActiveAttemptRef && state.showTypicalPromo) {
+          state.typicalActiveAttemptRef.taps = state.taps;
+          state.typicalActiveAttemptRef.seconds = Number(
+            Math.max(0.1, (performance.now() - state.attemptStartMs) / 1000).toFixed(1)
+          );
+          renderTables();
+        }
+      }
+
+      // Count every button activation inside the phone viewport (works for mouse, touch, keyboard, and .click())
+      phoneApp.addEventListener('click', (e) => {
+        const interactive = e.target.closest('button');
+        if (!interactive) return;
+        if (interactive.id === 'saral-hold-btn') return; // Counted on hold start
+        registerPhoneTap();
+      });
+
+      // Live stopwatch ticker
+      setInterval(() => {
+        if (state.screen !== 'done' || state.showTypicalPromo) {
+          const sec = Math.max(0, (performance.now() - state.attemptStartMs) / 1000);
+          liveSecondsEl.textContent = `${sec.toFixed(1)}s`;
+        }
+      }, 100);
+
+      // =========================================================
+      // RENDER TYPICAL APP (Version 1)
+      // =========================================================
+      function renderTypical() {
+        if (state.screen === 'contacts') {
+          phoneApp.innerHTML = `
+            <div class="typical-screen">
+              <div class="typical-topbar">
+                <span>QuickPay UPI</span>
+                <div class="typical-icon-group">
+                  <button type="button" class="typical-icon-btn" aria-label="Search">🔍</button>
+                  <button type="button" class="typical-icon-btn" aria-label="Scan QR">📷</button>
+                  <button type="button" class="typical-icon-btn" aria-label="Notifications">🔔</button>
+                </div>
+              </div>
+              <div class="typical-banner-strip">
+                <span>Instant loan up to Rs. 50,000! Apply now</span>
+                <span>→</span>
+              </div>
+              <div class="typical-section-label">Recent transfers</div>
+              <div class="typical-contact-list">
+                ${CONTACTS.map((c, idx) => `
+                  <button type="button" class="typical-contact-row" data-contact-idx="${idx}">
+                    <span class="typical-avatar" aria-hidden="true">👤</span>
+                    <span class="typical-contact-name">${c.name}</span>
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          `;
+
+          phoneApp.querySelectorAll('[data-contact-idx]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const idx = Number(btn.getAttribute('data-contact-idx'));
+              state.selectedContact = CONTACTS[idx];
+              state.amountStr = '';
+              state.screen = 'amount';
+              renderPhone();
+            });
+          });
+          return;
+        }
+
+        if (state.screen === 'amount') {
+          const c = state.selectedContact;
+          const displayAmt = state.amountStr ? `₹${state.amountStr}` : '₹0';
+          phoneApp.innerHTML = `
+            <div class="typical-screen">
+              <div class="typical-topbar">
+                <button type="button" class="typical-icon-btn" id="typ-back-btn" aria-label="Back">←</button>
+                <span>${c.name}</span>
+                <button type="button" class="typical-icon-btn" aria-label="More options">⋮</button>
+              </div>
+              <div class="typical-amount-area">
+                <span class="typical-avatar" aria-hidden="true">👤</span>
+                <div>${c.name}</div>
+                <div class="typical-amount-display">${displayAmt}</div>
+              </div>
+              <div class="typical-keypad">
+                ${['1','2','3','4','5','6','7','8','9','⌫','0'].map((k) => `
+                  <button type="button" class="typical-key" data-key="${k}">${k}</button>
+                `).join('')}
+                <button type="button" class="typical-key pay-icon-btn" id="typ-pay-btn" aria-label="Pay">✓</button>
+              </div>
+            </div>
+          `;
+
+          document.getElementById('typ-back-btn').addEventListener('click', () => {
+            state.screen = 'contacts';
+            renderPhone();
+          });
+
+          phoneApp.querySelectorAll('[data-key]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const k = btn.getAttribute('data-key');
+              if (k === '⌫') {
+                state.amountStr = state.amountStr.slice(0, -1);
+              } else if (state.amountStr.length < 5) {
+                state.amountStr = (state.amountStr === '0' ? '' : state.amountStr) + k;
+              }
+              renderPhone();
+            });
+          });
+
+          // Single-tap payment, no confirmation, triggers text-heavy promo pop-up
+          document.getElementById('typ-pay-btn').addEventListener('click', () => {
+            if (!state.amountStr || parseInt(state.amountStr, 10) <= 0) {
+              state.amountStr = '0';
+            }
+            state.screen = 'done';
+            state.showTypicalPromo = true;
+            state.typicalActiveAttemptRef = recordCompletedAttempt();
+            renderPhone();
+          });
+          return;
+        }
+
+        if (state.screen === 'done') {
+          const c = state.selectedContact;
+          const amt = parseInt(state.amountStr || '0', 10);
+          phoneApp.innerHTML = `
+            <div class="typical-screen">
+              <div class="typical-topbar">
+                <span>Receipt</span>
+                <button type="button" class="typical-icon-btn" id="typ-restart-icon" aria-label="Home">⌂</button>
+              </div>
+              <div class="typical-amount-area">
+                <div style="font-size: 12px; font-weight: 700; color: #0B6B3A;">Paid ₹${amt}</div>
+                <div>To: ${c.name} (${c.tag}, ends ${c.phoneEnd})</div>
+                <div style="margin-block-start: 8px; color: #7B8294;">
+                  ${c.isTarget && amt === 500
+                    ? 'Task check: Correct contact and amount.'
+                    : 'Task check: Wrong contact or amount sent!'}
+                </div>
+                <button type="button" id="typ-again-btn" style="margin-block-start: 10px; padding: 4px 8px; background: #E2E5EC; border-radius: 3px;">
+                  New transfer
+                </button>
+              </div>
+
+              ${state.showTypicalPromo ? `
+                <div class="typical-ModalOverlay" role="dialog" aria-label="Promotional offer">
+                  <div class="typical-promo-popup">
+                    <button type="button" class="typical-tiny-close" id="typ-close-promo" aria-label="Close offer">x</button>
+                    <div style="font-weight: 700; margin-block-end: 4px;">
+                      Congratulation! Pre-approved Rs. 75,000 SuperCash Credit Line + Scratch Card
+                    </div>
+                    <p>
+                      You have unlocked a special partner voucher on your UPI transfer of ₹${amt}.
+                      By clicking activate below you agree to terms &amp; conditions, annual processing
+                      charges of 3.5%, auto-debit mandate setup, promotional SMS alerts, and partner
+                      credit bureau inquiries. Offer expires in 04:59 minutes. Minimum wallet balance
+                      rules apply for cashback redemption across participating merchants.
+                    </p>
+                    <button type="button" class="typical-promo-cta" id="typ-fake-cta">
+                      Activate Cashback &amp; Credit Now
+                    </button>
+                    <div id="typ-ad-note" style="margin-block-start: 4px; color: #B3261E;"></div>
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          `;
+
+          const closeBtn = document.getElementById('typ-close-promo');
+          if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+              state.showTypicalPromo = false;
+              state.typicalActiveAttemptRef = null;
+              renderPhone();
+            });
+          }
+
+          const fakeCta = document.getElementById('typ-fake-cta');
+          if (fakeCta) {
+            fakeCta.addEventListener('click', () => {
+              const note = document.getElementById('typ-ad-note');
+              if (note) {
+                note.textContent = 'That button is an ad! Tap the tiny "x" in the top-right corner to close.';
+              }
+            });
+          }
+
+          const restartIcon = document.getElementById('typ-restart-icon');
+          if (restartIcon) restartIcon.addEventListener('click', startNewAttempt);
+
+          const againBtn = document.getElementById('typ-again-btn');
+          if (againBtn) againBtn.addEventListener('click', startNewAttempt);
+        }
+      }
+
+      // =========================================================
+      // RENDER SARAL APP (Version 2)
+      // =========================================================
+      function renderSaral() {
+        // Screen 1: Contact Cards
+        if (state.screen === 'contacts') {
+          phoneApp.innerHTML = `
+            <div class="saral-screen">
+              <div class="saral-header">
+                <h2 class="saral-title">Who do you want to pay?</h2>
+                <p class="saral-subtitle">Tap a person card below</p>
+              </div>
+              <div class="saral-contact-list" role="list">
+                ${CONTACTS.map((c, idx) => `
+                  <button
+                    type="button"
+                    class="saral-contact-card"
+                    data-saral-contact="${idx}"
+                    role="listitem"
+                  >
+                    <span class="saral-avatar" style="background: ${c.color};" aria-hidden="true">
+                      ${c.initials}
+                    </span>
+                    <span class="saral-card-body">
+                      <span class="saral-card-name">${c.name}</span>
+                      <span class="saral-tag-row">
+                        <span class="saral-tag">${c.tag}</span>
+                        <span class="saral-phone-end">Phone ends ${c.phoneEnd}</span>
+                      </span>
+                      <span class="saral-last-paid">Last paid ${c.lastPaid}</span>
+                    </span>
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          `;
+
+          phoneApp.querySelectorAll('[data-saral-contact]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const idx = Number(btn.getAttribute('data-saral-contact'));
+              state.selectedContact = CONTACTS[idx];
+              state.inlineNotice = '';
+              state.screen = 'amount';
+              renderPhone();
+            });
+          });
+          return;
+        }
+
+        // Screen 2: Amount Entry with 64px+ keypad and amount in digits & words
+        if (state.screen === 'amount') {
+          const c = state.selectedContact;
+          const amtNum = parseInt(state.amountStr || '0', 10);
+          const amtWords = numberToWords(amtNum);
+
+          phoneApp.innerHTML = `
+            <div class="saral-screen">
+              <button type="button" class="saral-btn" id="saral-back-contacts">
+                Back to contacts
+              </button>
+
+              <div class="saral-payee-summary">
+                <span class="saral-avatar" style="background: ${c.color};" aria-hidden="true">
+                  ${c.initials}
+                </span>
+                <div class="saral-card-body">
+                  <div class="saral-card-name">${c.name}</div>
+                  <div class="saral-tag-row">
+                    <span class="saral-tag">${c.tag}</span>
+                    <span class="saral-phone-end">Ends ${c.phoneEnd}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="saral-amount-box" aria-live="polite">
+                <div class="saral-amount-digits">Rs. ${amtNum}</div>
+                <div class="saral-amount-words">${amtWords}</div>
+              </div>
+
+              ${state.inlineNotice ? `
+                <div class="saral-inline-msg" role="alert">${state.inlineNotice}</div>
+              ` : ''}
+
+              <div class="saral-keypad" role="group" aria-label="Amount keypad">
+                ${['1','2','3','4','5','6','7','8','9'].map((d) => `
+                  <button type="button" class="saral-key" data-digit="${d}">${d}</button>
+                `).join('')}
+                <button type="button" class="saral-key word-key" id="saral-key-clear">Clear</button>
+                <button type="button" class="saral-key" data-digit="0">0</button>
+                <button type="button" class="saral-key word-key" id="saral-key-delete">Erase</button>
+              </div>
+
+              <button type="button" class="saral-btn primary" id="saral-go-confirm">
+                Review payment
+              </button>
+            </div>
+          `;
+
+          document.getElementById('saral-back-contacts').addEventListener('click', () => {
+            state.screen = 'contacts';
+            state.inlineNotice = '';
+            renderPhone();
+          });
+
+          phoneApp.querySelectorAll('[data-digit]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const d = btn.getAttribute('data-digit');
+              if (state.amountStr.length < 5) {
+                const next = (state.amountStr === '0' ? '' : state.amountStr) + d;
+                state.amountStr = next;
+                state.inlineNotice = '';
+                renderPhone();
+              }
+            });
+          });
+
+          document.getElementById('saral-key-clear').addEventListener('click', () => {
+            state.amountStr = '';
+            state.inlineNotice = '';
+            renderPhone();
+          });
+
+          document.getElementById('saral-key-delete').addEventListener('click', () => {
+            state.amountStr = state.amountStr.slice(0, -1);
+            state.inlineNotice = '';
+            renderPhone();
+          });
+
+          document.getElementById('saral-go-confirm').addEventListener('click', () => {
+            if (!amtNum || amtNum <= 0) {
+              state.inlineNotice = 'Please enter an amount greater than Rs. 0 before continuing.';
+              renderPhone();
+              return;
+            }
+            state.inlineNotice = '';
+            state.screen = 'confirm';
+            renderPhone();
+          });
+          return;
+        }
+
+        // Screen 3: Confirm Screen (Listen button, Change button, Hold or Tap to pay)
+        if (state.screen === 'confirm') {
+          const c = state.selectedContact;
+          const amtNum = parseInt(state.amountStr || '0', 10);
+          const amtWords = numberToWords(amtNum);
+          const isHold = state.payStyle === 'hold';
+
+          phoneApp.innerHTML = `
+            <div class="saral-screen">
+              <div class="saral-header">
+                <h2 class="saral-title">Check before you pay</h2>
+              </div>
+
+              <div class="saral-payee-summary">
+                <span class="saral-avatar" style="background: ${c.color};" aria-hidden="true">
+                  ${c.initials}
+                </span>
+                <div class="saral-card-body">
+                  <div class="saral-card-name">${c.name}</div>
+                  <div class="saral-tag-row">
+                    <span class="saral-tag">${c.tag}</span>
+                    <span class="saral-phone-end">Phone ends ${c.phoneEnd}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="saral-amount-box">
+                <div class="saral-amount-digits">Rs. ${amtNum}</div>
+                <div class="saral-amount-words">${amtWords}</div>
+              </div>
+
+              <button type="button" class="saral-btn" id="saral-listen-btn">
+                Listen to this
+              </button>
+
+              ${state.inlineNotice ? `
+                <div class="saral-inline-msg" aria-live="polite">${state.inlineNotice}</div>
+              ` : ''}
+
+              ${isHold ? `
+                <button type="button" class="saral-btn hold-pay-btn" id="saral-hold-btn">
+                  <span class="hold-fill-bar" id="saral-hold-fill" aria-hidden="true"></span>
+                  <span class="hold-btn-label" id="saral-hold-label">
+                    Hold to pay Rs. ${amtNum} (1 second)
+                  </span>
+                </button>
+              ` : `
+                <button type="button" class="saral-btn primary" id="saral-tap-btn">
+                  Tap to pay Rs. ${amtNum}
+                </button>
+              `}
+
+              <button type="button" class="saral-btn" id="saral-change-btn">
+                Change
+              </button>
+            </div>
+          `;
+
+          document.getElementById('saral-listen-btn').addEventListener('click', () => {
+            const speechText = `Paying Rupees ${amtNum}, ${amtWords}, to ${c.name}, ${c.tag}, phone number ending ${c.phoneEnd.split('').join(' ')}.`;
+            state.inlineNotice = `Reading aloud: “${speechText}”`;
+            renderPhone();
+            if ('speechSynthesis' in window) {
+              window.speechSynthesis.cancel();
+              const utter = new SpeechSynthesisUtterance(speechText);
+              utter.rate = 0.92;
+              window.speechSynthesis.speak(utter);
+            }
+          });
+
+          document.getElementById('saral-change-btn').addEventListener('click', () => {
+            stopActiveTimers();
+            state.inlineNotice = '';
+            state.screen = 'amount';
+            renderPhone();
+          });
+
+          if (isHold) {
+            const holdBtn = document.getElementById('saral-hold-btn');
+            const holdFill = document.getElementById('saral-hold-fill');
+            const holdLabel = document.getElementById('saral-hold-label');
+            const HOLD_DURATION_MS = 1000;
+            let holding = false;
+
+            const startHold = (e) => {
+              if (e.type === 'keydown' && e.key !== ' ' && e.key !== 'Enter') return;
+              if (holding) return;
+              holding = true;
+              registerPhoneTap();
+              state.holdStartMs = performance.now();
+
+              const step = (now) => {
+                if (!holding) return;
+                const elapsed = now - state.holdStartMs;
+                const pct = Math.min(100, (elapsed / HOLD_DURATION_MS) * 100);
+                holdFill.style.inlineSize = `${pct}%`;
+                holdLabel.textContent = `Hold to pay… ${Math.ceil((HOLD_DURATION_MS - Math.min(HOLD_DURATION_MS, elapsed)) / 100) / 10}s`;
+
+                if (elapsed >= HOLD_DURATION_MS) {
+                  holding = false;
+                  state.holdRAF = null;
+                  beginSaralSendingDelay();
+                  return;
+                }
+                state.holdRAF = requestAnimationFrame(step);
+              };
+
+              state.holdRAF = requestAnimationFrame(step);
+            };
+
+            const cancelHoldEarly = () => {
+              if (!holding) return;
+              holding = false;
+              if (state.holdRAF) {
+                cancelAnimationFrame(state.holdRAF);
+                state.holdRAF = null;
+              }
+              holdFill.style.inlineSize = '0%';
+              holdLabel.textContent = `Hold to pay Rs. ${amtNum} (1 second)`;
+              state.inlineNotice = 'Released early — payment was not sent. Hold for 1 full second.';
+              renderPhone();
+            };
+
+            holdBtn.addEventListener('pointerdown', startHold);
+            holdBtn.addEventListener('mousedown', startHold);
+            holdBtn.addEventListener('touchstart', startHold, { passive: true });
+            holdBtn.addEventListener('pointerup', cancelHoldEarly);
+            holdBtn.addEventListener('mouseup', cancelHoldEarly);
+            holdBtn.addEventListener('touchend', cancelHoldEarly);
+            holdBtn.addEventListener('pointerleave', cancelHoldEarly);
+            holdBtn.addEventListener('pointercancel', cancelHoldEarly);
+            holdBtn.addEventListener('keydown', startHold);
+            holdBtn.addEventListener('keyup', cancelHoldEarly);
+          } else {
+            document.getElementById('saral-tap-btn').addEventListener('click', () => {
+              beginSaralSendingDelay();
+            });
+          }
+          return;
+        }
+
+        // Screen 4: 8-second "sending soon" screen with countdown and large red Cancel button
+        if (state.screen === 'sending') {
+          const c = state.selectedContact;
+          const amtNum = parseInt(state.amountStr || '0', 10);
+          const pct = (state.sendingSecondsLeft / 8) * 100;
+
+          phoneApp.innerHTML = `
+            <div class="saral-screen">
+              <div class="saral-header">
+                <h2 class="saral-title">Sending soon…</h2>
+              </div>
+
+              <div class="countdown-box" aria-live="polite">
+                <div class="countdown-number" id="saral-countdown-text">
+                  Sending in ${state.sendingSecondsLeft} seconds
+                </div>
+                <div class="countdown-bar-track" aria-hidden="true">
+                  <div class="countdown-bar-fill" id="saral-countdown-bar" style="width: ${pct}%;"></div>
+                </div>
+                <p style="font-weight: 700;">
+                  Paying <strong>Rs. ${amtNum}</strong> (${numberToWords(amtNum)}) to
+                  <strong>${c.name} (${c.tag}, ends ${c.phoneEnd})</strong>
+                </p>
+              </div>
+
+              <button type="button" class="saral-btn danger" id="saral-cancel-send-btn">
+                Wrong? Cancel now
+              </button>
+            </div>
+          `;
+
+          document.getElementById('saral-cancel-send-btn').addEventListener('click', () => {
+            stopActiveTimers();
+            state.inlineNotice = 'Payment stopped. No money was sent.';
+            state.screen = 'confirm';
+            renderPhone();
+          });
+          return;
+        }
+
+        // Screen 5: Done / Sent receipt
+        if (state.screen === 'done') {
+          const c = state.selectedContact;
+          const amtNum = parseInt(state.amountStr || '0', 10);
+          const isCorrect = c.isTarget && amtNum === 500;
+
+          phoneApp.innerHTML = `
+            <div class="saral-screen">
+              <div class="saral-header">
+                <h2 class="saral-title">Payment sent</h2>
+              </div>
+
+              <div class="saral-amount-box">
+                <div class="saral-amount-digits">Rs. ${amtNum}</div>
+                <div class="saral-amount-words">${numberToWords(amtNum)}</div>
+              </div>
+
+              <div class="saral-payee-summary">
+                <span class="saral-avatar" style="background: ${c.color};" aria-hidden="true">
+                  ${c.initials}
+                </span>
+                <div class="saral-card-body">
+                  <div class="saral-card-name">${c.name}</div>
+                  <div class="saral-tag-row">
+                    <span class="saral-tag">${c.tag}</span>
+                    <span class="saral-phone-end">Ends ${c.phoneEnd}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="saral-inline-msg" role="status">
+                ${isCorrect
+                  ? 'Task result: Correct! Paid Rs. 500 to Gurmeet Singh (Tyre shop).'
+                  : `Task result: Wrong payment (${c.name} — ${c.tag}, Rs. ${amtNum}).`}
+              </div>
+
+              <button type="button" class="saral-btn primary" id="saral-new-attempt-phone">
+                Start a new attempt
+              </button>
+            </div>
+          `;
+
+          document.getElementById('saral-new-attempt-phone').addEventListener('click', startNewAttempt);
+        }
+      }
+
+      function beginSaralSendingDelay() {
+        stopActiveTimers();
+        state.screen = 'sending';
+        state.sendingSecondsLeft = 8;
+        state.inlineNotice = '';
+        renderPhone();
+
+        state.sendingTimer = setInterval(() => {
+          state.sendingSecondsLeft -= 1;
+          if (state.sendingSecondsLeft <= 0) {
+            stopActiveTimers();
+            state.screen = 'done';
+            recordCompletedAttempt();
+            renderPhone();
+            return;
+          }
+          const textEl = document.getElementById('saral-countdown-text');
+          const barEl = document.getElementById('saral-countdown-bar');
+          if (textEl) {
+            textEl.textContent = `Sending in ${state.sendingSecondsLeft} ${state.sendingSecondsLeft === 1 ? 'second' : 'seconds'}`;
+          }
+          if (barEl) {
+            barEl.style.width = `${(state.sendingSecondsLeft / 8) * 100}%`;
+          }
+        }, 1000);
+      }
+
+      function renderPhone() {
+        updateControlPanelUI();
+        if (state.mode === 'typical') {
+          renderTypical();
+        } else {
+          renderSaral();
+        }
+      }
+
+      // Control panel event listeners
+      btnModeTypical.addEventListener('click', () => {
+        if (state.mode !== 'typical') {
+          state.mode = 'typical';
+          startNewAttempt();
+        }
+      });
+
+      btnModeSaral.addEventListener('click', () => {
+        if (state.mode !== 'saral') {
+          state.mode = 'saral';
+          startNewAttempt();
+        }
+      });
+
+      btnStyleHold.addEventListener('click', () => {
+        state.payStyle = 'hold';
+        renderPhone();
+      });
+
+      btnStyleTap.addEventListener('click', () => {
+        state.payStyle = 'tap';
+        renderPhone();
+      });
+
+      sliderBlur.addEventListener('input', () => {
+        state.blur = Number(sliderBlur.value);
+        updateControlPanelUI();
+      });
+
+      sliderScale.addEventListener('input', () => {
+        state.scale = Number(sliderScale.value);
+        updateControlPanelUI();
+      });
+
+      btnNewAttempt.addEventListener('click', startNewAttempt);
+
+      // Initial render
+      renderTables();
+      startNewAttempt();
+    })();
+  </script>
+</body>
+</html>
+
